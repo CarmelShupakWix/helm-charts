@@ -1,0 +1,299 @@
+global:
+  enabled: true
+  imagePullSecrets: []
+  openshift: false
+  psp:
+    annotations: |
+      seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default,runtime/default
+      apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
+      seccomp.security.alpha.kubernetes.io/defaultProfileName:  runtime/default
+      apparmor.security.beta.kubernetes.io/defaultProfileName:  runtime/default
+    enable: false
+  tlsDisable: false
+injector:
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ template "vault.name" . }}
+              app.kubernetes.io/instance: "{{ .Release.Name }}"
+              component: injector
+          topologyKey: kubernetes.io/hostname
+  agentImage:
+    repository: vault
+    tag: 1.6.1
+  annotations: {}
+  authPath: auth/kubernetes
+  certs:
+    caBundle: ""
+    certName: tls.crt
+    keyName: tls.key
+    secretName: null
+  enabled: true
+  externalVaultAddr: ""
+  extraEnvironmentVars: {}
+  extraLabels: {}
+  failurePolicy: Ignore
+  image:
+    pullPolicy: IfNotPresent
+    repository: hashicorp/vault-k8s
+    tag: 0.7.0
+  leaderElector:
+    enabled: true
+    image:
+      repository: gcr.io/google_containers/leader-elector
+      tag: "0.4"
+    ttl: 60s
+  logFormat: standard
+  logLevel: info
+  metrics:
+    enabled: false
+  namespaceSelector: {}
+  nodeSelector: null
+  priorityClassName: ""
+  replicas: 1
+  resources: {}
+  revokeOnShutdown: false
+  service:
+    annotations: {}
+  tolerations: null
+server:
+  affinity: |
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ template "vault.name" . }}
+              app.kubernetes.io/instance: "{{ .Release.Name }}"
+              component: server
+          topologyKey: kubernetes.io/hostname
+  annotations: |
+    "prometheus.io/scrape": "true"
+    "prometheus.io/port": "8200"
+    "prometheus.io/path": "/v1/sys/metrics"
+    "prometheus.io/scheme": https
+  auditStorage:
+    accessMode: ReadWriteOnce
+    annotations: {}
+    enabled: false
+    mountPath: /vault/audit
+    size: 50Gi
+    storageClass: null
+  authDelegator:
+    enabled: true
+  dataStorage:
+    accessMode: ReadWriteOnce
+    annotations: {}
+    enabled: true
+    mountPath: /vault/data
+    size: 50Gi
+    storageClass: null
+  dev:
+    devRootToken: root
+    enabled: false
+  extraArgs: ""
+  extraContainers: null
+  extraEnvironmentVars: {}
+  extraInitContainers:
+  - args:
+    - POD_IP=$(cat /etc/hosts | tail -1 | awk '{print $1}') && openssl req -new -nodes
+      -newkey rsa:4096 -keyout /cert/tls.key -subj "/O=Wix/CN=$POD_IP" -reqexts SAN
+      -config <(cat /etc/ssl/openssl.cnf <(printf "\n[SAN]\nsubjectAltName=DNS:localhost,DNS:*.vault-42.wixprod.net,DNS:*.vault-96.wixprod.net,DNS:*.vault-84.wixprod.net,DNS:hashicorp-vault-0,DNS:hashicorp-vault-1,DNS:hashicorp-vault-2,DNS:*.hashicorp-vault-active.vault.svc.cluster.local,DNS:hashicorp-vault-active.vault.svc.cluster.local,DNS:vault-ca.local,DNS:*.vault-internal,DNS:hashicorp-vault,DNS:hashicorp-vault.local,DNS:vault.local,DNS:hashicorp-vault-internal.vault.svc.cluster.local,DNS:vault,DNS:wixprod.net,DNS:*.hashicorp-vault-internal.vault.svc.cluster.local,IP:$POD_IP"))
+      -out /cert/tls.req && cp /ca/tls.key /tmp/ca.key && cp /ca/tls.crt /tmp/ca.crt
+      && openssl x509 -req -in /cert/tls.req -CA /tmp/ca.crt -CAkey /tmp/ca.key -CAcreateserial
+      -out /cert/tls.crt -days 3650 -sha256 -extfile <(printf "subjectAltName=DNS:localhost,DNS:*.vault-42.wixprod.net,DNS:*.vault-96.wixprod.net,DNS:*.vault-84.wixprod.net,DNS:hashicorp-vault-0,DNS:hashicorp-vault-1,DNS:hashicorp-vault-2,DNS:*.hashicorp-vault-active.vault.svc.cluster.local,DNS:hashicorp-vault-active.vault.svc.cluster.local,DNS:vault-ca.local,DNS:*.vault-internal,DNS:hashicorp-vault,DNS:hashicorp-vault.local,DNS:vault.local,DNS:hashicorp-vault-internal.vault.svc.cluster.local,DNS:vault,DNS:wixprod.net,DNS:*.hashicorp-vault-internal.vault.svc.cluster.local,IP:$POD_IP")
+      && chmod 400 /tmp/ca.crt && cp /tmp/ca.crt /cert/ca.crt
+    command:
+    - bash
+    - -c
+    image: nginx
+    name: sign
+    volumeMounts:
+    - mountPath: /cert
+      name: cert
+    - mountPath: /ca
+      name: ca
+  extraLabels: {}
+  extraSecretEnvironmentVars: []
+  extraVolumes:
+  - name: hashicorp-consul-consul-ca-cert
+    path: /vault/tls
+    type: secret
+  - name: hashicorp-consul-consul-server-cert
+    path: /vault/tls
+    type: secret
+  ha:
+    apiAddr: null
+    config: |
+      ui = true
+
+      listener "tcp" {
+        tls_disable = 0
+        address = "[::]:8200"
+        #address = "HOST_IP:8200"
+        cluster_address = "[::]:8201"
+        #cluster_address = "HOST_IP:8201"
+        #tls_cert_file = "/vault/tls/vault-self-signed/tls.crt"
+        #tls_key_file  = "/vault/tls/vault-self-signed/tls.key"
+        #tls_client_ca_file = "/vault/tls/vault-self-signed/ca.crt"
+        tls_cert_file = "/cert/tls.crt"
+        tls_key_file  = "/cert/tls.key"
+        tls_client_ca_file = "/cert/ca.crt"
+        tls_disable_client_certs =  "true"
+        telemetry {
+          unauthenticated_metrics_access = true
+        }
+      }
+      storage "consul" {
+        path = "vault"
+        address = "HOST_IP:8501"
+        scheme        = "https"
+        tls_ca_file   = "/vault/tls/hashicorp-consul-consul-ca-cert/tls.crt"
+        tls_cert_file = "/vault/tls/hashicorp-consul-consul-server-cert/tls.crt"
+        tls_key_file  = "/vault/tls/hashicorp-consul-consul-server-cert/tls.key"
+      }
+
+      service_registration "kubernetes" {}
+
+      seal "awskms" {
+        region     = "eu-west-1"
+        kms_key_id = "0b3ce4a4-71a6-47a9-bf18-6bfc305ac059"
+      }
+
+
+      cluster_name = "gd-test-84"
+
+      log_level = "Debug"
+
+      telemetry {
+        prometheus_retention_time = "30s"
+        disable_hostname = true
+      }
+    disruptionBudget:
+      enabled: true
+      maxUnavailable: null
+    enabled: true
+    raft:
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+      enabled: false
+      setNodeId: false
+    replicas: 3
+  image:
+    pullPolicy: IfNotPresent
+    repository: hashicorp/vault-enterprise
+    tag: 1.7.3_ent
+  ingress:
+    annotations: {}
+    enabled: false
+    hosts:
+    - host: chart-example.local
+      paths: []
+    labels: {}
+    tls: []
+  livenessProbe:
+    enabled: false
+    failureThreshold: 2
+    initialDelaySeconds: 60
+    path: /v1/sys/health?standbyok=true
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 3
+  networkPolicy:
+    egress: []
+    enabled: false
+  nodeSelector: |
+    product: vault
+  postStart: []
+  preStopSleepSeconds: 20
+  priorityClassName: ""
+  readinessProbe:
+    enabled: true
+    failureThreshold: 2
+    initialDelaySeconds: 5
+    path: /v1/sys/health?perfstandbyok=true&standbyok=true
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 3
+  resources:
+    limits:
+      cpu: 3500m
+      memory: 10000Mi
+    requests:
+      cpu: 3000m
+      memory: 10000Mi
+  route:
+    annotations: {}
+    enabled: false
+    host: chart-example.local
+    labels: {}
+  service:
+    annotations: {}
+    enabled: true
+    port: 8200
+    targetPort: 8200
+    type: NodePort
+  serviceAccount:
+    annotations: {}
+    create: true
+    name: ""
+  shareProcessNamespace: false
+  standalone:
+    config: |
+      ui = true
+
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+      storage "file" {
+        path = "/vault/data"
+      }
+
+      # Example configuration for using auto-unseal, using Google Cloud KMS. The
+      # GKMS keys must already exist, and the cluster must have a service account
+      # that is authorized to access GCP KMS.
+      #seal "gcpckms" {
+      #   project     = "vault-helm-dev"
+      #   region      = "global"
+      #   key_ring    = "vault-helm-unseal-kr"
+      #   crypto_key  = "vault-helm-unseal-key"
+      #}
+    enabled: '-'
+  statefulSet:
+    annotations: {}
+  tolerations: null
+  updateStrategyType: OnDelete
+  volumeMounts:
+  - mountPath: /cert
+    name: cert
+    readOnly: true
+  volumes:
+  - emptyDir: {}
+    name: cert
+  - name: ca
+    secret:
+      secretName: vault-self-signed
+ui:
+  activeVaultPodOnly: false
+  annotations: {}
+  enabled: false
+  externalPort: 8200
+  publishNotReadyAddresses: true
+  serviceNodePort: null
+  serviceType: ClusterIP
+
