@@ -1,8 +1,8 @@
 apiVersion: v2
-appVersion: 0.1.2
+appVersion: 0.1.3
 description: Official Wix Vault Chart
 name: wix-vault
-version: 0.1.5
+version: 0.1.6
 dependencies:
 - name: vault
   version: "0.9.0"
