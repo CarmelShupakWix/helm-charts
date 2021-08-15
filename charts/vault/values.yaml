@@ -1,4 +1,4 @@
-wix-vault:
+vault:
   global:
     enabled: true
     imagePullSecrets: []
