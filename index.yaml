@@ -1,0 +1,13 @@
+apiVersion: v1
+entries:
+  wix-vault:
+  - apiVersion: v2
+    appVersion: 0.1.2
+    created: "2021-08-15T11:35:12.075299564Z"
+    description: Official Wix Vault Chart
+    digest: 305f0d0ad139ee1afaf789b26d9baa27d3ab345444648db62315f037943e78b8
+    name: wix-vault
+    urls:
+    - https://github.com/CarmelShupakWix/helm-charts/releases/download/wix-vault-0.1.4/wix-vault-0.1.4.tgz
+    version: 0.1.4
+generated: "2021-08-15T11:35:11.953164834Z"
