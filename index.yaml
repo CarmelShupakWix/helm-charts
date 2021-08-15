@@ -3,6 +3,19 @@ entries:
   wix-vault:
   - apiVersion: v2
     appVersion: 0.1.3
+    created: "2021-08-15T14:28:45.518225623Z"
+    dependencies:
+    - name: vault
+      repository: https://helm.releases.hashicorp.com
+      version: 0.9.0
+    description: Official Wix Vault Chart
+    digest: 59aa7692a353113840855bf3fb4a784bb944a020d2bbee93cd259a1033fa4605
+    name: wix-vault
+    urls:
+    - https://github.com/CarmelShupakWix/helm-charts/releases/download/wix-vault-0.1.10/wix-vault-0.1.10.tgz
+    version: 0.1.10
+  - apiVersion: v2
+    appVersion: 0.1.3
     created: "2021-08-15T14:13:43.131041441Z"
     dependencies:
     - name: vault
