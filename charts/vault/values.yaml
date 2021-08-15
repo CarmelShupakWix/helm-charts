@@ -163,7 +163,7 @@ vault:
         }
 
 
-        cluster_name = "gd-test-84"
+        cluster_name = "vault-gd-test-84"
 
         log_level = "Debug"
 
