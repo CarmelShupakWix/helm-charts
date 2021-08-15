@@ -3,3 +3,7 @@ appVersion: 0.1.2
 description: Official Wix Vault Chart
 name: wix-vault
 version: 0.1.4
+dependencies:
+- name: vault
+  version: "0.9.0"
+  repository: "https://helm.releases.hashicorp.com"
